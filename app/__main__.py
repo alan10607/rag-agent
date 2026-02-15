@@ -9,6 +9,7 @@ Supports two modes:
 """
 
 import argparse
+import questionary
 import sys
 
 from app import config
@@ -40,6 +41,7 @@ def _show_config() -> None:
     print(f"  {'UPSERT_BATCH_SIZE':<25} {config.UPSERT_BATCH_SIZE}")
     print()
     print(f"  {'CURSOR_CLI_CMD':<25} {config.CURSOR_CLI_CMD}")
+    print(f"  {'CURSOR_API_KEY':<25} {'set' if config.CURSOR_API_KEY else '(not set)'}")
     print(f"  {'AGENT_MODEL':<25} {config.AGENT_MODEL}")
     print(f"  {'AGENT_TIMEOUT_SECONDS':<25} {config.AGENT_TIMEOUT_SECONDS}s")
     print()
@@ -74,64 +76,48 @@ def _run_agent(query: str, *, top_k: int | None = None, model: str | None = None
     result = ask(question=query, top_k=top_k, model=model)
     print(format_answer(result))
 
-
 def _interactive_menu() -> None:
-    """Display an interactive menu loop."""
-    print()
-    print("=" * 50)
+    print("\n" + "=" * 50)
     print("  VectorSearcher CLI")
     print("=" * 50)
 
     while True:
-        print()
-        print("  1. Ingest  - Import documents from data/")
-        print("  2. Search  - Semantic search")
-        print("  3. Agent   - RAG + LLM Q&A")
-        print("  0. Exit")
-        print()
+        print("\n")
         try:
-            choice = input("\n  Select [1/2/3/4]: ").strip()
-        except (KeyboardInterrupt, EOFError):
-            print("\n\n  Bye!")
+            choice = questionary.select(
+                "Select an option:",
+                choices=[
+                    "Agent   - RAG + LLM Q&A",
+                    "Search  - Semantic search",
+                    "Ingest  - Import documents from data/",
+                    "Config  - Show current configuration",
+                    "Exit",
+                ],
+            ).ask()
+
+        except KeyboardInterrupt:
+            print("\nBye!")
             break
 
-        if choice == "1":
-            print()
+        if choice is None or choice == "Exit":
+            print("\nBye!")
+            break
+
+        elif choice.startswith("Ingest"):
             _run_ingest()
 
-        elif choice == "2":
-            try:
-                query = input("  Enter query: ").strip()
-            except (KeyboardInterrupt, EOFError):
-                print()
-                continue
+        elif choice.startswith("Search"):
+            query = questionary.text("Enter query:").ask()
+            if query:
+                _run_search(query)
 
-            if not query:
-                print("  Query cannot be empty.")
-                continue
+        elif choice.startswith("Agent"):
+            query = questionary.text("Enter question:").ask()
+            if query:
+                _run_agent(query)
 
-            _run_search(query)
-
-        elif choice == "3":
-            try:
-                query = input("  Enter question: ").strip()
-            except (KeyboardInterrupt, EOFError):
-                print()
-                continue
-
-            if not query:
-                print("  Question cannot be empty.")
-                continue
-
-            _run_agent(query)
-
-        elif choice == "0":
-            print("\n  Bye!")
-            break
-
-        else:
-            print("  Invalid choice. Please try again.")
-
+        elif choice.startswith("Config"):
+            _show_config()
 
 def main() -> None:
     """Main entry point: subcommand dispatch or interactive menu."""

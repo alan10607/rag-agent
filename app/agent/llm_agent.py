@@ -10,9 +10,10 @@ Orchestrates the full RAG pipeline:
 
 from __future__ import annotations
 
+import argparse
 from app import config
 from app.agent import cli_runner, prompt_builder
-from app.logger import get_logger
+from app.logger import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
@@ -110,7 +111,6 @@ def format_answer(result: cli_runner.AgentResult) -> str:
 
         lines.append(f"  Model: {result.model or 'unknown'}")
         lines.append(f"  Duration: {duration_str}")
-        lines.append(f"  Session: {result.session_id or 'N/A'}")
 
         if result.context_chunks:
             sources = {c.get("payload", {}).get("source", "unknown") for c in result.context_chunks}
@@ -118,14 +118,54 @@ def format_answer(result: cli_runner.AgentResult) -> str:
     else:
         lines.append(f"  Error: {result.error}")
         lines.append("")
-        if "Vector DB" in (result.error or ""):
+        error = result.error or ""
+        if "Vector DB" in error:
             lines.append("  Hint: Make sure Qdrant is running.")
             lines.append(f"  Expected at {config.QDRANT_HOST}:{config.QDRANT_PORT}")
-            lines.append("  Start: ./start.sh start  OR  docker compose up -d qdrant")
+            lines.append("  Start: docker compose up -d qdrant")
+        elif "not authenticated" in error.lower():
+            lines.append("  Hint: Cursor CLI is not authenticated.")
+            lines.append("  Option 1: agent login")
+            lines.append("  Option 2: set CURSOR_API_KEY in .env")
         else:
             lines.append("  Hint: Make sure Cursor CLI is installed and authenticated.")
             lines.append("  Install: curl https://cursor.com/install -fsS | bash")
-            lines.append("  Auth: agent login")
+            lines.append("  Auth: agent login  OR  set CURSOR_API_KEY in .env")
 
     lines.append("")
     return "\n".join(lines)
+
+def main() -> None:
+    """CLI entry point for LLM Agent."""
+    parser = argparse.ArgumentParser(
+        description="VectorSearcher LLM Agent",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "question",
+        type=str,
+        help="The text question to answer.",
+    )
+    parser.add_argument(
+        "--top_k",
+        type=int,
+        default=config.DEFAULT_TOP_K,
+        help=f"Number of results to return (default: {config.DEFAULT_TOP_K}).",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=config.AGENT_MODEL,
+        help=f"The model to use (default: {config.AGENT_MODEL}).",
+    )
+
+    args = parser.parse_args()
+
+    setup_logging(module="agent")
+
+    results = ask(args.query, top_k=args.top_k, model=args.model)
+    print(format_answer(results))
+
+
+if __name__ == "__main__":
+    main()

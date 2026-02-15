@@ -10,6 +10,7 @@ Features:
 - Comprehensive logging
 """
 
+import argparse
 import os
 import re
 import uuid
@@ -308,8 +309,23 @@ def ingest(data_dir: str | None = None) -> int:
 
 def main() -> None:
     """CLI entry point for ingestion."""
+    parser = argparse.ArgumentParser(
+        description="VectorSearcher Ingestion",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+
+    parser.add_argument(
+        "--data_dir",
+        type=str,
+        default=config.DATA_DIR,
+        help="The path to the data directory. Default from config if not provided.",
+    )
+
+    args = parser.parse_args()
+
     setup_logging(module="ingest")
-    total = ingest()
+
+    total = ingest(args.data_dir)
     print(f"\nIngestion complete. Total chunks ingested: {total}")
 
 

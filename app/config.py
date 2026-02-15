@@ -39,6 +39,7 @@ UPSERT_BATCH_SIZE = 100
 
 # LLM Agent settings (Cursor Agent CLI)
 CURSOR_CLI_CMD = os.getenv("CURSOR_CLI_CMD", "agent")
+CURSOR_API_KEY = os.getenv("CURSOR_API_KEY", "")
 AGENT_MODEL = os.getenv("AGENT_MODEL", "gemini-3-flash")
 AGENT_TIMEOUT_SECONDS = int(os.getenv("AGENT_TIMEOUT_SECONDS", "120"))
 

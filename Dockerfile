@@ -2,7 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install dependencies first for better layer caching
+# Install system dependencies (curl for Cursor CLI installer)
+RUN apt-get update && apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Cursor Agent CLI
+RUN curl https://cursor.com/install -fsS | bash && \
+    ln -sf /root/.local/bin/agent /usr/local/bin/agent
+
+# Install Python dependencies first for better layer caching
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

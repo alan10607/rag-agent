@@ -5,9 +5,38 @@ Constructs prompts that combine retrieved context chunks with the user's questio
 following a standard RAG (Retrieval-Augmented Generation) pattern.
 """
 
+import re
+
 from app.logger import get_logger
 
 logger = get_logger(__name__)
+
+
+def _detect_language(text: str) -> str:
+    """Detect the dominant language of the text based on character distribution.
+
+    Returns a human-readable language name (e.g. "Traditional Chinese",
+    "English", "Japanese").
+    """
+    if not text:
+        return "English"
+
+    cjk = len(re.findall(r'[\u4e00-\u9fff\u3400-\u4dbf\uf900-\ufaff]', text))
+    jp_only = len(re.findall(r'[\u3040-\u309f\u30a0-\u30ff]', text))  # hiragana + katakana
+    kr = len(re.findall(r'[\uac00-\ud7af\u1100-\u11ff]', text))
+
+    total = len(text)
+    if total == 0:
+        return "English"
+
+    if jp_only > 0 and (jp_only + cjk) / total > 0.1:
+        return "Japanese"
+    if kr / total > 0.1:
+        return "Korean"
+    if cjk / total > 0.1:
+        return "Traditional Chinese"
+
+    return "English"
 
 # ---------------------------------------------------------------------------
 # Prompt template
@@ -21,7 +50,9 @@ Rules:
 1. Prioritize information from the reference materials and cite the source.
 2. If the reference materials are insufficient, clearly state which parts \
 come from the references and which are your own supplementation.
-3. Reply in the same language the user used to ask the question.
+3. **CRITICAL language rule**: You MUST reply in {lang_name} because the \
+user's question is written in {lang_name}. Do NOT switch to any other \
+language regardless of the language used in the reference materials.
 4. Keep the answer concise and well-structured.
 """
 
@@ -67,11 +98,15 @@ def build_prompt(question: str, context_chunks: list[dict]) -> str:
         context="\n".join(formatted_chunks) if formatted_chunks else "(No relevant reference materials found)"
     )
 
-    prompt = f"{_SYSTEM_TEMPLATE}\n{context_block}\nUser question: {question}\n"
+    lang_name = _detect_language(question)
+    system_block = _SYSTEM_TEMPLATE.format(lang_name=lang_name)
+
+    prompt = f"{system_block}\n{context_block}\nUser question: {question}\n"
 
     logger.info(
-        "Built RAG prompt: question=%r, context_chunks=%d, prompt_length=%d",
+        "Built RAG prompt: question=%r, lang=%s, context_chunks=%d, prompt_length=%d",
         question,
+        lang_name,
         len(context_chunks),
         len(prompt),
     )
