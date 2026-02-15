@@ -1,5 +1,5 @@
 """
-VectorVault - Query Pipeline (Semantic Search)
+VectorSearcher - Query Pipeline (Semantic Search)
 
 Provides a CLI interface for semantic search against the Qdrant vector store.
 
@@ -9,7 +9,9 @@ Usage:
 
 import argparse
 
-from app import config, embedding, qdrant_client
+from app import config
+from app.core import embedding
+from app.storage import vector_store
 from app.logger import get_logger, setup_logging
 
 logger = get_logger(__name__)
@@ -32,13 +34,13 @@ def search(query: str, top_k: int | None = None) -> list[dict]:
     query_vector = embedding.encode(query)
 
     # Search in Qdrant
-    client = qdrant_client.get_client()
-    results = qdrant_client.search_vectors(client, query_vector, top_k=k)
+    client = vector_store.get_client()
+    results = vector_store.search_vectors(client, query_vector, top_k=k)
 
     return results
 
 
-def _format_results(results: list[dict]) -> str:
+def format_results(results: list[dict]) -> str:
     """Format search results for CLI display."""
     if not results:
         return "No results found."
@@ -52,12 +54,9 @@ def _format_results(results: list[dict]) -> str:
         payload = result.get("payload", {})
         score = result.get("score", 0.0)
         source = payload.get("source", "unknown")
-        text = payload.get("text", "")
+        preview = payload.get("text", "")
         page = payload.get("page")
         chunk_idx = payload.get("chunk_index", "?")
-
-        # Truncate long text for display
-        preview = text[:200] + "..." if len(text) > 200 else text
 
         lines.append(f"  [{i}] Score: {score:.4f}")
         lines.append(f"      Source: {source}")
@@ -74,7 +73,7 @@ def _format_results(results: list[dict]) -> str:
 def main() -> None:
     """CLI entry point for semantic search."""
     parser = argparse.ArgumentParser(
-        description="VectorVault Semantic Search",
+        description="VectorSearcher Semantic Search",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
@@ -94,7 +93,7 @@ def main() -> None:
     setup_logging(module="search")
 
     results = search(args.query, top_k=args.top_k)
-    print(_format_results(results))
+    print(format_results(results))
 
 
 if __name__ == "__main__":

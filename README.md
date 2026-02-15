@@ -1,4 +1,4 @@
-# VectorVault
+# VectorSearcher
 
 A modular local vector search engine built with Qdrant and Python, designed for scalable semantic search with clear ingestion and retrieval separation.
 
@@ -8,28 +8,57 @@ A modular local vector search engine built with Qdrant and Python, designed for 
 - Automatic text chunking with recursive character splitting
 - Embedding generation using `all-MiniLM-L6-v2` (384-dimensional vectors)
 - Vector storage and search via Qdrant
-- CLI-based semantic search
+- CLI-based semantic search (interactive menu + subcommands)
 - Idempotent ingestion (safe to re-run)
+- Docker Compose for one-command setup
 - No LLM dependency — pure vector search
 
 ## Prerequisites
 
-- Python 3.11+
-- Docker (for Qdrant)
+- Docker & Docker Compose
 
-## Quick Start
+For local development without Docker:
+- Python 3.14+
 
-### 1. Start Qdrant
+## Quick Start (Docker)
+
+### One-command launch
 
 ```bash
-docker run -d --name qdrant \
-  -p 6333:6333 \
-  -p 6334:6334 \
-  -v $(pwd)/qdrant_storage:/qdrant/storage \
-  qdrant/qdrant
+./start.sh
 ```
 
-### 2. Set Up Python Environment
+This will:
+1. Build the app image
+2. Start Qdrant in background
+3. Launch an interactive CLI menu
+4. Shut down all containers when you exit
+
+### Manual Docker commands
+
+```bash
+# Start Qdrant only (background)
+docker compose up qdrant -d
+
+# Interactive mode
+docker compose run --rm vector-searcher
+
+# Direct ingest
+docker compose run --rm vector-searcher python -m app ingest
+
+# Direct search
+docker compose run --rm vector-searcher python -m app search "What is vector search?"
+docker compose run --rm vector-searcher python -m app search "How do embeddings work?" --top_k 3
+
+# Shut down everything
+docker compose down
+```
+
+### Qdrant Dashboard
+
+Once Qdrant is running, open `http://localhost:6333/dashboard` to browse collections and data.
+
+## Quick Start (Local Development)
 
 ```bash
 python3 -m venv venv
@@ -37,61 +66,88 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 3. Add Documents
-
-Place `.pdf` or `.txt` files into the `data/` directory. A sample file is included.
-
-### 4. Run Ingestion
-
 ```bash
+# Start Qdrant separately
+docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
+
+# Interactive mode
+python -m app
+
+# Or use subcommands directly
+python -m app ingest
+python -m app search "What is vector search?"
+
+# Or run modules directly
 python -m app.ingest
+python -m app.search "What is vector search?" --top_k 5
 ```
 
-This will scan `data/`, extract text, split into chunks, generate embeddings, and store them in Qdrant.
+## CLI Usage
 
-### 5. Search
+### Interactive menu (no arguments)
 
 ```bash
-python -m app.search "What is vector search?"
-python -m app.search "How do embeddings work?" --top_k 3
+python -m app
+# ==================================================
+#   VectorSearcher CLI
+# ==================================================
+#
+#   1. Ingest  - Import documents from data/
+#   2. Search  - Semantic search
+#   3. Exit
+#
+#   Select [1/2/3]:
+```
+
+### Subcommands
+
+```bash
+python -m app ingest                          # Ingest documents
+python -m app search "query" --top_k 3        # Search with options
 ```
 
 ## Project Structure
 
 ```
-vectorvault/
+VectorSearcher/
 ├── app/
 │   ├── __init__.py
+│   ├── __main__.py            # Unified CLI entry point
+│   ├── config.py              # Centralized configuration
 │   ├── logger.py              # Unified logger (module-specific log files)
 │   ├── embedding.py           # Embedding model wrapper (shared)
-│   ├── splitter.py            # Recursive text splitter (shared)
 │   ├── qdrant_client.py       # Qdrant client wrapper (shared)
 │   ├── ingest/                # Ingestion pipeline module
 │   │   ├── __init__.py
-│   │   ├── __main__.py        # CLI entry: python -m app.ingest
-│   │   └── pipeline.py        # Ingestion logic
+│   │   ├── __main__.py        # python -m app.ingest
+│   │   ├── pipeline.py
+│   │   └── splitter.py        # Recursive text splitter
 │   └── search/                # Search pipeline module
 │       ├── __init__.py
-│       ├── __main__.py        # CLI entry: python -m app.search
-│       └── pipeline.py        # Search logic
-├── data/                      # Document storage
+│       ├── __main__.py        # python -m app.search
+│       └── pipeline.py
+├── data/                      # Document storage (mounted as volume)
 │   └── sample.txt
 ├── logs/                      # Auto-generated log files
 │   ├── ingest_YYYYMMDD.log
 │   └── search_YYYYMMDD.log
-├── tests/
+├── test/
 │   ├── test_splitter.py
 │   └── test_embedding.py
-├── config.py
+├── Dockerfile
+├── docker-compose.yml
+├── start.sh                   # One-command launch script
 ├── requirements.txt
 ├── .env
 ├── .env.example
+├── .dockerignore
+├── .gitignore
 └── README.md
 ```
 
 ## Configuration
 
-All settings are managed in `config.py` and can be overridden via `.env`:
+All settings are managed in `app/config.py` and can be overridden via environment variables or `.env`:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -107,20 +163,19 @@ All settings are managed in `config.py` and can be overridden via `.env`:
 
 ```bash
 pip install pytest
-pytest tests/ -v
+pytest test/ -v
 ```
-
-Note: Embedding tests require the `all-MiniLM-L6-v2` model to be downloaded (happens automatically on first run).
 
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Language | Python 3.11+ |
+| Language | Python 3.14 |
 | Vector DB | Qdrant (Docker) |
 | Embeddings | sentence-transformers (all-MiniLM-L6-v2) |
 | PDF Parsing | PyPDF |
 | Text Splitting | Custom recursive character splitter |
+| Container | Docker Compose |
 
 ## Future Roadmap
 

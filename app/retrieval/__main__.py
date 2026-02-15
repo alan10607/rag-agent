@@ -1,5 +1,5 @@
 """Entry point for: python -m app.search"""
 
-from app.search.pipeline import main
+from app.retrieval.retriever import main
 
 main()

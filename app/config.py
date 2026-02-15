@@ -1,11 +1,13 @@
 """
-VectorVault - Centralized Configuration
+VectorSearcher - Centralized Configuration
 
 All configurable parameters are managed here.
 Values are loaded from environment variables (.env) with sensible defaults.
 """
 
+import logging
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -20,16 +22,27 @@ EMBEDDING_MODEL_NAME = os.getenv("EMBEDDING_MODEL_NAME", "all-MiniLM-L6-v2")
 VECTOR_SIZE = int(os.getenv("VECTOR_SIZE", "384"))
 
 # Search defaults
-DEFAULT_TOP_K = 5
+DEFAULT_TOP_K = int(os.getenv("DEFAULT_TOP_K", "5"))
 
 # Text splitter settings
-CHUNK_SIZE = 500
-CHUNK_OVERLAP = 50
+# For Chinese text: 300 chars ≈ 300-450 tokens (within model's 512 token limit)
+CHUNK_SIZE = int(os.getenv("CHUNK_SIZE", "300"))
+CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "80"))
+MIN_CHUNK_SIZE = int(os.getenv("MIN_CHUNK_SIZE", "50"))
 
 # Ingestion settings
 # Project root is one level up from app/
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(_PROJECT_ROOT, "data"))
-SUPPORTED_EXTENSIONS = [".pdf", ".txt"]
+SUPPORTED_EXTENSIONS = [".pdf", ".txt", ".md"]
 UPSERT_BATCH_SIZE = 100
+
+# LLM Agent settings (Cursor Agent CLI)
+CURSOR_CLI_CMD = os.getenv("CURSOR_CLI_CMD", "agent")
+AGENT_MODEL = os.getenv("AGENT_MODEL", "gemini-3-flash")
+AGENT_TIMEOUT_SECONDS = int(os.getenv("AGENT_TIMEOUT_SECONDS", "120"))
+
+# Logging
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_LEVEL_INT = getattr(logging, LOG_LEVEL, logging.INFO)
 

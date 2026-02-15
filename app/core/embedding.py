@@ -1,5 +1,5 @@
 """
-VectorVault - Embedding Generator
+VectorSearcher - Embedding Generator
 
 Wraps the sentence-transformers library to provide a simple interface
 for converting text into vector embeddings.

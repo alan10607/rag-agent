@@ -1,5 +1,5 @@
 """
-VectorVault - Qdrant Client Wrapper
+VectorSearcher - Qdrant Client Wrapper
 
 Encapsulates all interactions with the Qdrant vector database:
 - Connection management
