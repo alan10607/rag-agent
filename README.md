@@ -1,186 +1,118 @@
 # VectorSearcher
 
-A modular local vector search engine built with Qdrant and Python, designed for scalable semantic search with clear ingestion and retrieval separation.
+A lightweight, modular vector search engine built with Python and Qdrant, designed for fast semantic search with clear separation of ingestion and retrieval.
 
 ## Features
 
-- Process documents from a local folder (`data/`)
-- Automatic text chunking with recursive character splitting
-- Embedding generation using `all-MiniLM-L6-v2` (384-dimensional vectors)
-- Vector storage and search via Qdrant
-- CLI-based semantic search (interactive menu + subcommands)
-- Idempotent ingestion (safe to re-run)
-- Docker Compose for one-command setup
-- No LLM dependency — pure vector search
+- Ingest documents from a local folder (`data/`)  
+- Supports **Markdown (.md)**, **Word (.docx)**, and plain text  
+- Automatic text chunking with recursive splitting and sliding window  
+- Embeddings with `intfloat/multilingual-e5-small` (384-dimensional) or others  
+- Vector storage and search using Qdrant  
+- CLI for interactive or direct subcommand search  
+- Docker Compose one-command setup  
+- LLM integration(by cursor agent cli) for advanced QA  
 
 ## Prerequisites
 
-- Docker & Docker Compose
+- Docker & Docker Compose  
+- Python 3.14+ (for local development without Docker)
 
-For local development without Docker:
-- Python 3.14+
+## Quick Start
 
-## Quick Start (Docker)
-
-### One-command launch
+### By `start.sh` script
 
 ```bash
+# This builds the app
+./start.sh build
+
+# Launches CLI, and shuts down containers on exit.
 ./start.sh
+
+# Remove containers and volumes
+./start.sh down
 ```
 
-This will:
-1. Build the app image
-2. Start Qdrant in background
-3. Launch an interactive CLI menu
-4. Shut down all containers when you exit
-
-### Manual Docker commands
-
+### Manual commands
 ```bash
-# Start Qdrant only (background)
+# Start Qdrant
 docker compose up qdrant -d
 
-# Interactive mode
-docker compose run --rm vector-searcher
-
-# Direct ingest
-docker compose run --rm vector-searcher python -m app ingest
-
-# Direct search
-docker compose run --rm vector-searcher python -m app search "What is vector search?"
-docker compose run --rm vector-searcher python -m app search "How do embeddings work?" --top_k 3
-
-# Shut down everything
-docker compose down
+# Local development: create venv, install dependencies, and launch CLI
+python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt && python3 -m app
 ```
 
-### Qdrant Dashboard
 
-Once Qdrant is running, open `http://localhost:6333/dashboard` to browse collections and data.
+## CLI Commands
+You can also run individual modules via command line.
 
-## Quick Start (Local Development)
-
+### Main CLI
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+python -m app -h
+# Available commands: config, ingest, search, agent
 ```
 
+### Show Current Configuration
 ```bash
-# Start Qdrant separately
-docker run -d --name qdrant -p 6333:6333 qdrant/qdrant
+python -m app config
+```
 
-# Interactive mode
-python -m app
-
-# Or use subcommands directly
+### Ingest Documents
+```bash
 python -m app ingest
-python -m app search "What is vector search?"
 
-# Or run modules directly
-python -m app.ingest
-python -m app.search "What is vector search?" --top_k 5
+# Optional: specify data folder
+python -m app ingest --data_dir ./data
 ```
 
-## CLI Usage
-
-### Interactive menu (no arguments)
-
+### Semantic Search
 ```bash
-python -m app
-# ==================================================
-#   VectorSearcher CLI
-# ==================================================
-#
-#   1. Ingest  - Import documents from data/
-#   2. Search  - Semantic search
-#   3. Exit
-#
-#   Select [1/2/3]:
+python -m app search "your query"
+
+# Optional: limit results
+python -m app search "your query" --top_k 5
 ```
 
-### Subcommands
-
+### RAG + LLM Agent (Cursor CLI)
 ```bash
-python -m app ingest                          # Ingest documents
-python -m app search "query" --top_k 3        # Search with options
+python -m app agent "your question"
+
+# Optional: limit context chunks and select model
+python -m app agent "your question" --top_k 5 --model gemini-3-flash
 ```
 
-## Project Structure
 
+## Environments
+Copy this file to .env and adjust values as needed:
 ```
-VectorSearcher/
-├── app/
-│   ├── __init__.py
-│   ├── __main__.py            # Unified CLI entry point
-│   ├── config.py              # Centralized configuration
-│   ├── logger.py              # Unified logger (module-specific log files)
-│   ├── embedding.py           # Embedding model wrapper (shared)
-│   ├── qdrant_client.py       # Qdrant client wrapper (shared)
-│   ├── ingest/                # Ingestion pipeline module
-│   │   ├── __init__.py
-│   │   ├── __main__.py        # python -m app.ingest
-│   │   ├── pipeline.py
-│   │   └── splitter.py        # Recursive text splitter
-│   └── search/                # Search pipeline module
-│       ├── __init__.py
-│       ├── __main__.py        # python -m app.search
-│       └── pipeline.py
-├── data/                      # Document storage (mounted as volume)
-│   └── sample.txt
-├── logs/                      # Auto-generated log files
-│   ├── ingest_YYYYMMDD.log
-│   └── search_YYYYMMDD.log
-├── test/
-│   ├── test_splitter.py
-│   └── test_embedding.py
-├── Dockerfile
-├── docker-compose.yml
-├── start.sh                   # One-command launch script
-├── requirements.txt
-├── .env
-├── .env.example
-├── .dockerignore
-├── .gitignore
-└── README.md
+# Qdrant vector database connection
+QDRANT_HOST=localhost
+QDRANT_PORT=6333
+COLLECTION_NAME=documents
+
+# Embedding model settings
+# English only: all-MiniLM-L6-v2
+# Multilingual (Chinese, etc.): intfloat/multilingual-e5-small
+EMBEDDING_MODEL_NAME=intfloat/multilingual-e5-small
+VECTOR_SIZE=384
+
+# Text splitter settings
+CHUNK_SIZE=600
+CHUNK_OVERLAP=120
+CHUNK_MIN_SIZE=50
+
+# Search defaults
+DEFAULT_TOP_K=5
+
+# Data directory (relative or absolute path)
+DATA_DIR=./data
+
+# LLM Agent settings (Cursor Agent CLI)
+CURSOR_CLI_CMD=agent
+CURSOR_API_KEY=your_cursor_api_key_here
+AGENT_MODEL=gemini-3-flash
+AGENT_TIMEOUT_SECONDS=120
+
+# Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+LOG_LEVEL=INFO
 ```
-
-## Configuration
-
-All settings are managed in `app/config.py` and can be overridden via environment variables or `.env`:
-
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `QDRANT_HOST` | `localhost` | Qdrant server host |
-| `QDRANT_PORT` | `6333` | Qdrant server port |
-| `COLLECTION_NAME` | `documents` | Qdrant collection name |
-| `DATA_DIR` | `./data` | Document source directory |
-| `CHUNK_SIZE` | `500` | Max characters per chunk |
-| `CHUNK_OVERLAP` | `50` | Overlap between chunks |
-| `DEFAULT_TOP_K` | `5` | Default search results count |
-
-## Running Tests
-
-```bash
-pip install pytest
-pytest test/ -v
-```
-
-## Technology Stack
-
-| Component | Technology |
-|-----------|------------|
-| Language | Python 3.14 |
-| Vector DB | Qdrant (Docker) |
-| Embeddings | sentence-transformers (all-MiniLM-L6-v2) |
-| PDF Parsing | PyPDF |
-| Text Splitting | Custom recursive character splitter |
-| Container | Docker Compose |
-
-## Future Roadmap
-
-- Phase 2: FastAPI REST endpoint
-- Phase 3: LLM QA layer
-- Phase 4: Metadata filtering
-- Phase 5: Multi-collection support
-- Phase 6: Cloud deployment
