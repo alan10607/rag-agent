@@ -80,7 +80,7 @@ class TestSplitText:
     def test_chinese_separators_kept(self):
         """Chinese punctuation should be preserved in chunk text."""
         text = "第一句話。第二句話。第三句話。" * 20
-        chunks = split_text(text, chunk_size=50, chunk_overlap=10, min_chunk_size=0)
+        chunks = split_text(text, chunk_size=50, chunk_overlap=10, chunk_min_size=0)
         for chunk in chunks:
             # Chunks should not start with a separator
             assert not chunk.text.startswith("。")
@@ -91,7 +91,7 @@ class TestSplitText:
         text = "Short Title\n\n" + " ".join(
             f"Sentence number {i} with unique content here." for i in range(30)
         )
-        chunks = split_text(text, chunk_size=200, chunk_overlap=80, min_chunk_size=0)
+        chunks = split_text(text, chunk_size=200, chunk_overlap=80, chunk_min_size=0)
         for i in range(len(chunks) - 1):
             # No two consecutive chunks should share > 80% prefix
             shorter = min(len(chunks[i].text), len(chunks[i + 1].text))
@@ -116,7 +116,7 @@ class TestSplitText:
             + "\n\nTitle Two\n\n"
             + "Another long paragraph with enough content. " * 5
         )
-        chunks = split_text(text, chunk_size=300, chunk_overlap=40, min_chunk_size=50)
+        chunks = split_text(text, chunk_size=300, chunk_overlap=40, chunk_min_size=50)
         for chunk in chunks:
             assert len(chunk.text) >= 50, (
                 f"Chunk too small ({len(chunk.text)} chars): '{chunk.text[:60]}...'"
@@ -125,8 +125,8 @@ class TestSplitText:
     def test_min_chunk_size_zero_disables_merge(self):
         """Setting min_chunk_size=0 should skip merging."""
         text = "Hi\n\n" + "word " * 100
-        chunks_merged = split_text(text, chunk_size=200, chunk_overlap=20, min_chunk_size=50)
-        chunks_raw = split_text(text, chunk_size=200, chunk_overlap=20, min_chunk_size=0)
+        chunks_merged = split_text(text, chunk_size=200, chunk_overlap=20, chunk_min_size=50)
+        chunks_raw = split_text(text, chunk_size=200, chunk_overlap=20, chunk_min_size=0)
         # With merging, small 'Hi' should be absorbed → fewer chunks
         assert len(chunks_merged) <= len(chunks_raw)
 
@@ -142,7 +142,7 @@ class TestSplitText:
             "Then, similarity is measured using distance metrics like cosine. "
             "The closest vectors are returned as search results."
         )
-        chunks = split_text(text, chunk_size=300, chunk_overlap=40, min_chunk_size=50)
+        chunks = split_text(text, chunk_size=300, chunk_overlap=40, chunk_min_size=50)
         # No chunk should be just a heading
         for chunk in chunks:
             assert len(chunk.text) >= 50

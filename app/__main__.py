@@ -35,6 +35,7 @@ def _show_config() -> None:
     print(f"  {'DEFAULT_TOP_K':<25} {config.DEFAULT_TOP_K}")
     print(f"  {'CHUNK_SIZE':<25} {config.CHUNK_SIZE}")
     print(f"  {'CHUNK_OVERLAP':<25} {config.CHUNK_OVERLAP}")
+    print(f"  {'CHUNK_MIN_SIZE':<25} {config.CHUNK_MIN_SIZE}")
     print()
     print(f"  {'DATA_DIR':<25} {config.DATA_DIR}")
     print(f"  {'SUPPORTED_EXTENSIONS':<25} {', '.join(config.SUPPORTED_EXTENSIONS)}")
@@ -47,21 +48,21 @@ def _show_config() -> None:
     print()
 
 
-def _run_ingest() -> None:
-    """Execute the ingestion pipeline."""
+def _run_ingest(data_dir: str | None = None) -> None:
+    """Execute the ingestion pipeline from a given data directory."""
     setup_logging(module="ingest")
     from app.indexing.indexer import ingest
 
-    total = ingest()
-    print(f"\nIngestion complete. Total chunks ingested: {total}")
+    total, success_count, failed_count = ingest(data_dir=data_dir)
+    print(f"\nIngestion complete. Total points: {total}, success: {success_count}, failed: {failed_count}")
 
 
-def _run_search(query: str) -> None:
+def _run_search(query: str, top_k: int | None = None) -> None:
     """Execute a semantic search query."""
     setup_logging(module="search")
     from app.retrieval.retriever import search, format_results
 
-    results = search(query, top_k=config.DEFAULT_TOP_K)
+    results = search(query, top_k=top_k)
     print(format_results(results))
 
 
@@ -76,6 +77,44 @@ def _run_agent(query: str, *, top_k: int | None = None, model: str | None = None
     result = ask(question=query, top_k=top_k, model=model)
     print(format_answer(result))
 
+
+def run_ingest_interactive():
+    data_dir = questionary.text(
+        f"Enter data directory (default: {config.DATA_DIR}):"
+    ).ask()
+    _run_ingest(data_dir=data_dir)
+
+
+def run_search_interactive():
+    while True:
+        query = questionary.text("Enter query (empty to return):").ask()
+        if not query:
+            print("\nReturning to main menu...")
+            break
+
+        input_top_k = questionary.text(
+            f"Enter number of search chunks (default: {config.DEFAULT_TOP_K}):"
+        ).ask()
+        try:
+            top_k = int(input_top_k) if input_top_k else config.DEFAULT_TOP_K
+        except ValueError:
+            print("Invalid input, using default value.")
+            top_k = config.DEFAULT_TOP_K
+
+        _run_search(query, top_k=top_k)
+
+
+def run_agent_interactive():
+    while True:
+        question = questionary.text("Enter question (empty to return):").ask()
+        if not question:
+            print("\nReturning to main menu...")
+            break
+
+        model = questionary.text(f"Enter model (default: {config.AGENT_MODEL}):").ask()
+        _run_agent(question, model=model)
+
+
 def _interactive_menu() -> None:
     print("\n" + "=" * 50)
     print("  VectorSearcher CLI")
@@ -89,35 +128,28 @@ def _interactive_menu() -> None:
                 choices=[
                     "Agent   - RAG + LLM Q&A",
                     "Search  - Semantic search",
-                    "Ingest  - Import documents from data/",
+                    "Ingest  - Import documents",
                     "Config  - Show current configuration",
                     "Exit",
                 ],
             ).ask()
 
+            if choice is None or choice == "Exit":
+                print("\nBye!")
+                break
+            elif choice.startswith("Ingest"):
+                run_ingest_interactive()
+            elif choice.startswith("Search"):
+                run_search_interactive()
+            elif choice.startswith("Agent"):
+                run_agent_interactive()
+            elif choice.startswith("Config"):
+                _show_config()
+
         except KeyboardInterrupt:
             print("\nBye!")
             break
-
-        if choice is None or choice == "Exit":
-            print("\nBye!")
-            break
-
-        elif choice.startswith("Ingest"):
-            _run_ingest()
-
-        elif choice.startswith("Search"):
-            query = questionary.text("Enter query:").ask()
-            if query:
-                _run_search(query)
-
-        elif choice.startswith("Agent"):
-            query = questionary.text("Enter question:").ask()
-            if query:
-                _run_agent(query)
-
-        elif choice.startswith("Config"):
-            _show_config()
+        
 
 def main() -> None:
     """Main entry point: subcommand dispatch or interactive menu."""
@@ -136,7 +168,11 @@ def main() -> None:
     subparsers.add_parser("config", help="Show current configuration")
 
     # Ingest subcommand
-    subparsers.add_parser("ingest", help="Import documents from data/ into Qdrant")
+    ingest_parser = subparsers.add_parser("ingest", help="Import documents into Qdrant")
+    ingest_parser.add_argument(
+        "--data_dir", type=str, default=config.DATA_DIR, help=f"The path to the data directory. Default from config if not provided ({config.DATA_DIR}).",
+    )
+
 
     # Search subcommand
     search_parser = subparsers.add_parser("search", help="Semantic search against Qdrant")
@@ -161,10 +197,10 @@ def main() -> None:
         _show_config()
 
     elif args.command == "ingest":
-        _run_ingest()
+        _run_ingest(data_dir=args.data_dir)
 
     elif args.command == "search":
-        _run_search(args.query)
+        _run_search(args.query, top_k=args.top_k)
 
     elif args.command == "agent":
         _run_agent(args.query, top_k=args.top_k, model=args.model)

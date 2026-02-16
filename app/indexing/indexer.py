@@ -16,7 +16,6 @@ import re
 import uuid
 from datetime import datetime, timezone
 
-from pypdf import PdfReader
 from qdrant_client.http.models import PointStruct
 
 from app import config
@@ -46,84 +45,13 @@ def _extract_text_from_txt(filepath: str) -> str:
     with open(filepath, "r", encoding="utf-8") as f:
         return f.read()
 
+def _extract_text_from_docx(filepath: str) -> str:
+    """Extract text content from a .docx file."""
+    from docx import Document
 
-def _strip_markdown_syntax(text: str) -> str:
-    """Strip Markdown formatting syntax, keeping the semantic text content.
-
-    Removes or simplifies:
-    - Image references ![alt](url) → alt
-    - Links [text](url) → text
-    - Header markers (# ## ### etc.)
-    - Emphasis markers (**, *, __, _)
-    - Inline code backticks
-    - Fenced code block markers (``` and ~~~)
-    - Horizontal rules (---, ***, ___)
-    - Blockquote markers (>)
-    - HTML tags
-    - Normalizes excessive blank lines
-    """
-    # Remove fenced code block markers (``` or ~~~), keep content inside
-    text = re.sub(r'^```\w*\s*$', '', text, flags=re.MULTILINE)
-    text = re.sub(r'^~~~\w*\s*$', '', text, flags=re.MULTILINE)
-
-    # Remove images: ![alt](url) → alt
-    text = re.sub(r'!\[([^\]]*)\]\([^)]*\)', r'\1', text)
-
-    # Convert links: [text](url) → text
-    text = re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', text)
-
-    # Remove reference-style links: [text][ref] → text
-    text = re.sub(r'\[([^\]]*)\]\[[^\]]*\]', r'\1', text)
-
-    # Remove link definitions: [ref]: url
-    text = re.sub(r'^\[([^\]]*)\]:\s*\S+.*$', '', text, flags=re.MULTILINE)
-
-    # Remove HTML tags
-    text = re.sub(r'<[^>]+>', '', text)
-
-    # Remove horizontal rules (lines with only ---, ***, or ___)
-    text = re.sub(r'^[\s]*([-*_]){3,}\s*$', '', text, flags=re.MULTILINE)
-
-    # Remove header markers (keep the text)
-    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
-
-    # Remove blockquote markers (keep the text)
-    text = re.sub(r'^>\s?', '', text, flags=re.MULTILINE)
-
-    # Remove bold/italic markers: **text** → text, *text* → text
-    text = re.sub(r'\*\*([^*]+)\*\*', r'\1', text)
-    text = re.sub(r'__([^_]+)__', r'\1', text)
-    text = re.sub(r'\*([^*]+)\*', r'\1', text)
-    text = re.sub(r'_([^_\s][^_]*)_', r'\1', text)
-
-    # Remove strikethrough: ~~text~~ → text
-    text = re.sub(r'~~([^~]+)~~', r'\1', text)
-
-    # Remove inline code backticks: `code` → code
-    text = re.sub(r'`([^`]+)`', r'\1', text)
-
-    # Remove unordered list markers (-, *, +) at line start
-    text = re.sub(r'^[\s]*[-*+]\s+', '', text, flags=re.MULTILINE)
-
-    # Remove ordered list markers (1., 2., etc.) at line start
-    text = re.sub(r'^[\s]*\d+\.\s+', '', text, flags=re.MULTILINE)
-
-    # Normalize multiple blank lines into at most two newlines
-    text = re.sub(r'\n{3,}', '\n\n', text)
-
-    return text.strip()
-
-
-def _extract_text_from_markdown(filepath: str) -> str:
-    """Extract text content from a .md file with Markdown syntax stripped.
-
-    Reads the file as UTF-8, strips Markdown formatting syntax,
-    and returns clean text suitable for embedding.
-    """
-    with open(filepath, "r", encoding="utf-8") as f:
-        raw = f.read()
-    return _strip_markdown_syntax(raw)
-
+    doc = Document(filepath)
+    paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+    return "\n".join(paragraphs)
 
 def _clean_chinese_text(text: str) -> str:
     """Clean up common PDF extraction artifacts in Chinese text.
@@ -159,6 +87,8 @@ def _extract_text_from_pdf(filepath: str) -> tuple[str, list[dict]]:
         - page_map: A list of dicts with 'page' and 'start_char' keys,
                      used to map chunk positions back to page numbers.
     """
+    from pypdf import PdfReader
+
     reader = PdfReader(filepath)
     full_text = ""
     page_map: list[dict] = []
@@ -218,22 +148,19 @@ def _process_file(filepath: str) -> list[PointStruct]:
     # --- Step 1: Extract text (format-specific) ---
     page_map: list[dict] | None = None
 
-    if ext == ".txt":
-        text = _extract_text_from_txt(filepath)
-    elif ext == ".pdf":
+    if ext == ".pdf":
         text, page_map = _extract_text_from_pdf(filepath)
-    elif ext == ".md":
-        text = _extract_text_from_markdown(filepath)
+    elif ext == ".docx":
+        text = _extract_text_from_docx(filepath)
     else:
-        logger.warning("Unsupported file type: '%s'.", ext)
-        return []
+        text = _extract_text_from_txt(filepath)
 
-    if not text:
+    if not text:    
         logger.warning("No text extracted from '%s'.", filename)
         return []
 
     # --- Step 2: Split into chunks ---
-    chunks = splitter.split_text(text)
+    chunks = splitter.split_text(text, ext=ext)
     texts = [c.text for c in chunks]
 
     if not texts:
@@ -268,14 +195,17 @@ def _process_file(filepath: str) -> list[PointStruct]:
     return points
 
 
-def ingest(data_dir: str | None = None) -> int:
+def ingest(data_dir: str | None = None) -> tuple[int, int, int]:
     """Run the full ingestion pipeline.
 
     Args:
         data_dir: Path to the data directory (default from config).
 
     Returns:
-        Total number of points ingested.
+        A tuple of:
+        - total number of points ingested.
+        - number of successful files processed.
+        - number of failed files processed.
     """
     directory = data_dir or config.DATA_DIR
     logger.info("Starting ingestion from '%s'...", directory)
@@ -291,20 +221,32 @@ def ingest(data_dir: str | None = None) -> int:
     # Scan and process files
     filepaths = _scan_directory(directory)
     all_points: list[PointStruct] = []
+    success_count = 0
+    failed_count = 0
 
     for filepath in filepaths:
-        points = _process_file(filepath)
-        all_points.extend(points)
+        try:
+            points = _process_file(filepath)
+            all_points.extend(points)
+            success_count += 1
+        except Exception as e:
+            logger.exception(
+                "Failed to process file '%s'. Skipping. Error: %s",
+                filepath,
+                str(e),
+            )
+            failed_count += 1
+            continue
 
-    if not all_points:
+
+    if all_points:
+        # Upsert into Qdrant
+        vector_store.upsert_points(client, all_points)
+        logger.info("Ingestion complete. Total points: %d", len(all_points))
+    else:
         logger.warning("No points generated. Nothing to ingest.")
-        return 0
 
-    # Upsert into Qdrant
-    vector_store.upsert_points(client, all_points)
-    logger.info("Ingestion complete. Total points: %d", len(all_points))
-
-    return len(all_points)
+    return len(all_points), success_count, failed_count
 
 
 def main() -> None:
@@ -323,10 +265,10 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    setup_logging(module="ingest")
+    setup_logging(module="ingest")  
 
-    total = ingest(args.data_dir)
-    print(f"\nIngestion complete. Total chunks ingested: {total}")
+    total, success_count, failed_count = ingest(args.data_dir)
+    print(f"\nIngestion complete. Total points: {total}, success: {success_count}, failed: {failed_count}")
 
 
 if __name__ == "__main__":
