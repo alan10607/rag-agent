@@ -1,0 +1,11 @@
+{
+    "mcpServers": {
+      "vector-searcher": {
+        "command": "/bin/sh",
+        "args": ["-c", "cd /workspace && python -m app.mcp.main"],
+        "env": {
+          "QDRANT_HOST": "qdrant"
+        }
+      }
+    }
+  }

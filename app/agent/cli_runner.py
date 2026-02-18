@@ -20,8 +20,7 @@ import subprocess
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import IO
+from typing import IO, Dict, Any, List, Union, Optional
 
 from app import config
 from app.logger import get_logger
@@ -32,6 +31,80 @@ logger = get_logger(__name__)
 # ---------------------------------------------------------------------------
 # Data structures
 # ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class SemanticSearchResult:
+    index: Union[int, str] = "?"
+    score: float = 0.0
+    source: str = "unknown"
+    page: Optional[Union[int, str]] = None
+    chunk_index: Union[int, str] = "?"
+    text: str = "?"
+
+@dataclass(frozen=True)
+class MCPToolResult:
+    tool_name: str
+    tool_args: Dict[str, Any]
+    success: bool
+    timestamp_ms: int
+    raw_text: str
+    is_semantic_search: bool = False
+    
+    def __post_init__(self):
+        if self.tool_name == "vector-searcher-semantic_search":
+            object.__setattr__(self, "is_semantic_search", True)
+
+    @classmethod
+    def from_event(cls, event: dict) -> "MCPToolResult":
+        """Factory method to convert raw event dict to MCPToolResult object"""
+        mcp_call = event.get("tool_call", {}).get("mcpToolCall", {})
+        args_data = mcp_call.get("args", {})
+        
+        tool_name = args_data.get("name") or "unknown"
+        tool_args = args_data.get("args", {})
+        is_error = event.get("result", {}).get("success", {}).get("isError", False)
+        
+        result_data = mcp_call.get("result", {})
+        content_list = result_data.get("success", {}).get("content", [])
+        raw_text = ""
+        if isinstance(content_list, list) and content_list:
+            raw_text = content_list[0].get("text", {}).get("text", "")
+
+        return cls(
+            tool_name=tool_name,
+            tool_args=tool_args,
+            success=not is_error,
+            timestamp_ms=event.get("timestamp_ms", 0),
+            raw_text=raw_text
+        )
+
+
+    def to_semantic_results(self) -> List[SemanticSearchResult]:
+        """Convert raw text to a list of SemanticSearchResult objects"""
+        if not self.is_semantic_search or not self.raw_text:
+            return []
+
+        try:
+            data = json.loads(self.raw_text)
+            contents = data.get("content", []) if isinstance(data, dict) else []
+            
+            results = []
+            for entry in contents:
+                if entry.get("type") == "text" and isinstance(entry.get("text"), list):
+                    for chunk in entry["text"]:
+                        if isinstance(chunk, dict):
+                            results.append(SemanticSearchResult(
+                                index=chunk.get("index", "?"),
+                                score=chunk.get("score", 0.0),
+                                source=chunk.get("source", "unknown"),
+                                page=chunk.get("page"),
+                                chunk_index=chunk.get("chunk_index", "?"),
+                                text=chunk.get("text", "?")
+                            ))
+            return results
+        except (json.JSONDecodeError, TypeError):
+            return []
+
+
 
 @dataclass
 class AgentResult:
@@ -41,6 +114,8 @@ class AgentResult:
     thinking_text: str = ""
     context_chunks: list[dict] = field(default_factory=list)
     raw_events: list[dict] = field(default_factory=list)
+    mcp_results: list[MCPToolResult] = field(default_factory=list)
+    vector_search_results: list[SemanticSearchResult] = field(default_factory=list)
     duration_ms: int = 0
     model: str = ""
     session_id: str = ""
@@ -259,6 +334,25 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
             event = _parse_event(raw_line)
             if event is None:
                 continue
+                
+            logger.info("Captured a event type: %s, subtype: %s", event.get("type", "unknown"), event.get("subtype", "unknown"  ))
+
+            if event.get("type") == "tool_call" and event.get("subtype") == "completed":
+                logger.info("Captured a tool call event with completed subtype, now parsing the result")
+                mcp_result = MCPToolResult.from_event(event)
+                logger.info(
+                    "Parsed tool call: name: %s, args: %s, success: %s, timestamp: %s", 
+                    mcp_result.tool_name, mcp_result.tool_args, mcp_result.success, mcp_result.timestamp_ms
+                )
+                result.mcp_results.append(mcp_result)
+
+                if mcp_result.is_semantic_search and mcp_result.success:
+                    logger.info("The result is a semantic sesarch, now parsing the semantic search results")
+                    result.vector_search_results.extend(mcp_result.to_semantic_results())
+                    logger.info("Parsed the semantic search results count: %d", len(result.vector_search_results))
+                    for r in result.vector_search_results:
+                        logger.info("Search result: index: %s, score: %f, source: %s, page: %s, chunk_index: %s", 
+                            r.index, r.score, r.source, r.page, r.chunk_index)
 
             result.raw_events.append(event)
 
@@ -340,6 +434,24 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
         logger.exception("Unexpected error running Cursor CLI")
 
     finally:
+        if result.mcp_results:
+            # --- MCP TOOLS USED ---
+            raw_log.write("\n# --- MCP TOOLS USED ---\n")
+            for r in result.mcp_results:
+                raw_log.write(f"# {r.tool_name}: args: {r.tool_args} success: {r.success} timestamp_ms: {r.timestamp_ms}\n")
+            raw_log.write("# --- END MCP TOOLS USED ---\n")
+            logger.info("MCP tools (%d) used in this session", len(result.mcp_results))
+
+            # --- VECTOR SEARCH RESULTS ---
+            raw_log.write("\n# --- VECTOR SEARCH RESULTS ---\n")
+            for r in result.vector_search_results:
+                raw_log.write(
+                    f"# {r.index}, score: {r.score}, source: {r.source}, "
+                    f"page: {r.page}, chunk_index: {r.chunk_index}\n"
+                )
+            raw_log.write("# --- END VECTOR SEARCH RESULTS ---\n")  
+            logger.info("Vector search results (%d) found in this session", len(result.vector_search_results))
+
         if raw_log is not None:
             raw_log.write(f"\n# --- DONE (success={result.success}) ---\n")
             raw_log.close()

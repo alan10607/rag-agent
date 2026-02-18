@@ -21,7 +21,6 @@ logger = get_logger(__name__)
 def ask(
     question: str,
     *,
-    top_k: int | None = None,
     model: str | None = None,
     timeout: int | None = None,
 ) -> cli_runner.AgentResult:
@@ -29,44 +28,23 @@ def ask(
 
     Args:
         question: The user's natural-language question.
-        top_k: Number of context chunks to retrieve (default from config).
         model: Override the LLM model name.
         timeout: Override the CLI timeout in seconds.
 
     Returns:
         An ``AgentResult`` containing the LLM answer and metadata.
     """
-    k = top_k or config.DEFAULT_TOP_K
-
     # ------------------------------------------------------------------
-    # Step 1: Retrieve context from vector DB
+    # Step 1: Build prompt
     # ------------------------------------------------------------------
-    logger.info("RAG retrieval: question=%r, top_k=%d", question, k)
-
-    from app.retrieval.retriever import search as vector_search
-
-    try:
-        context_chunks = vector_search(question, top_k=k)
-        logger.info("Retrieved %d context chunks", len(context_chunks))
-    except Exception as exc:
-        err_msg = f"Vector DB retrieval failed: {exc}"
-        logger.error(err_msg)
-        result = cli_runner.AgentResult(error=err_msg)
-        return result
-
-    # ------------------------------------------------------------------
-    # Step 2: Build prompt
-    # ------------------------------------------------------------------
-    prompt = prompt_builder.build_prompt(question, context_chunks)
+    prompt = prompt_builder.build_prompt(question)
     logger.info(f"Prompt for Agent: %s", prompt)
 
     # ------------------------------------------------------------------
-    # Step 3: Call Cursor Agent CLI
+    # Step 2: Call Cursor Agent CLI
     # ------------------------------------------------------------------
     logger.info("Sending prompt to Cursor Agent CLI (model=%s)", model or config.AGENT_MODEL)
-
     result = cli_runner.run(prompt, model=model, timeout=timeout)
-    result.context_chunks = context_chunks
 
     if result.success:
         logger.info(
@@ -112,9 +90,14 @@ def format_answer(result: cli_runner.AgentResult) -> str:
         lines.append(f"  Model: {result.model or 'unknown'}")
         lines.append(f"  Duration: {duration_str}")
 
-        if result.context_chunks:
-            sources = {c.get("payload", {}).get("source", "unknown") for c in result.context_chunks}
-            lines.append(f"  Context: {len(result.context_chunks)} chunk(s) from {', '.join(sorted(sources))}")
+        if result.mcp_results:
+            lines.append(f"  MCP Calls: {len(result.mcp_results)} time(s)")
+
+        if result.vector_search_results:
+            sources = {r.source for r in result.vector_search_results}
+            lines.append(f"  Context: {len(result.vector_search_results)} chunk(s) from{', '.join(sorted(sources))}")
+
+
     else:
         lines.append(f"  Error: {result.error}")
         lines.append("")
@@ -147,12 +130,6 @@ def main() -> None:
         help="The text question to answer.",
     )
     parser.add_argument(
-        "--top_k",
-        type=int,
-        default=config.DEFAULT_TOP_K,
-        help=f"Number of results to return (default: {config.DEFAULT_TOP_K}).",
-    )
-    parser.add_argument(
         "--model",
         type=str,
         default=config.AGENT_MODEL,
@@ -163,7 +140,7 @@ def main() -> None:
 
     setup_logging(module="agent")
 
-    results = ask(args.query, top_k=args.top_k, model=args.model)
+    results = ask(args.query, model=args.model)
     print(format_answer(results))
 
 

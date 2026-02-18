@@ -1,15 +1,26 @@
 """
-VectorSearcher - RAG Prompt Builder
+VectorSearcher - RAG Prompt Builder with MCP Tools
 
 Constructs prompts that combine retrieved context chunks with the user's question,
 following a standard RAG (Retrieval-Augmented Generation) pattern.
 """
 
 import re
-
+import json
+from mcp.types import Tool
 from app.logger import get_logger
+from app.mcp import retrieval_tool
+from typing import List
 
 logger = get_logger(__name__)
+
+_TOOL_MODULES = [retrieval_tool]
+
+def _get_available_mcp_tools() -> List[Tool]:
+    available_tools = []
+    for module in _TOOL_MODULES:
+        available_tools.extend(module.get_tools())
+    return available_tools
 
 
 def _detect_language(text: str) -> str:
@@ -56,58 +67,39 @@ language regardless of the language used in the reference materials.
 4. Keep the answer concise and well-structured.
 """
 
-_CONTEXT_TEMPLATE = """\
-========== Reference Materials ==========
-{context}
-========== End of Reference Materials ==========
+_MCP_TOOLS_TEMPLATE = """\
+You must use the following MCP tools to get the information you need:
+{mcp_tools}
 """
 
-_CHUNK_TEMPLATE = """\
-[Source: {source}, chunk #{chunk_index}, similarity: {score:.4f}]
-{text}
----
-"""
-
-
-def build_prompt(question: str, context_chunks: list[dict]) -> str:
+def build_prompt(question: str) -> str:
     """Build a RAG prompt from the user question and retrieved context chunks.
+
+    Ensures all available MCP tools are included in the prompt.
 
     Args:
         question: The user's natural-language question.
-        context_chunks: A list of result dicts returned by ``retriever.search()``.
-            Each dict has keys: ``id``, ``score``, ``payload`` (with ``text``,
-            ``source``, ``chunk_index``, etc.).
 
     Returns:
         A fully assembled prompt string ready to be sent to the LLM.
     """
-    # Format each context chunk
-    formatted_chunks: list[str] = []
-    for chunk in context_chunks:
-        payload = chunk.get("payload", {})
-        formatted_chunks.append(
-            _CHUNK_TEMPLATE.format(
-                source=payload.get("source", "unknown"),
-                chunk_index=payload.get("chunk_index", "?"),
-                score=chunk.get("score", 0.0),
-                text=payload.get("text", ""),
-            )
-        )
-
-    context_block = _CONTEXT_TEMPLATE.format(
-        context="\n".join(formatted_chunks) if formatted_chunks else "(No relevant reference materials found)"
-    )
-
     lang_name = _detect_language(question)
     system_block = _SYSTEM_TEMPLATE.format(lang_name=lang_name)
 
-    prompt = f"{system_block}\n{context_block}\nUser question: {question}\n"
+    # Build MCP tools block dynamically
+    tools = _get_available_mcp_tools()
+    tools_str = "\n".join(
+        f"- {t.name}: {t.description}\n  Schema: {json.dumps(t.inputSchema, indent=2)}" 
+        for t in tools
+    )
+    mcp_tools_block = _MCP_TOOLS_TEMPLATE.format(mcp_tools=tools_str)
+
+    prompt = f"{system_block}\n{mcp_tools_block}\nUser question: {question}\n"
 
     logger.info(
-        "Built RAG prompt: question=%r, lang=%s, context_chunks=%d, prompt_length=%d",
+        "Built RAG prompt: question=%r, lang=%s, prompt_length=%d",
         question,
         lang_name,
-        len(context_chunks),
         len(prompt),
     )
     return prompt

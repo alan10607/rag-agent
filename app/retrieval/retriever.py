@@ -14,6 +14,8 @@ from app.core import embedding
 from app.storage import vector_store
 from app.logger import get_logger, setup_logging
 
+MAX_TOP_K = 20
+
 logger = get_logger(__name__)
 
 
@@ -30,6 +32,10 @@ def search(query: str, top_k: int | None = None) -> list[dict]:
     k = top_k or config.DEFAULT_TOP_K
     logger.info("Searching for: '%s' (top_k=%d)", query, k)
 
+    if k > MAX_TOP_K:
+        k = MAX_TOP_K
+        logger.warning("top_k is greater than %d, setting to %d, k=%d", MAX_TOP_K, MAX_TOP_K, k)
+        
     # Convert query to embedding
     query_vector = embedding.encode(query)
 
@@ -68,6 +74,35 @@ def format_results(results: list[dict]) -> str:
         lines.append(f"  {'-'*56}")
 
     return "\n".join(lines)
+
+def format_results_json(results: list[dict]) -> list[dict]:
+    """
+    Format search results as structured JSON-friendly list of dicts.
+
+    Each result dict contains:
+    - index
+    - score
+    - source
+    - page
+    - chunk_index
+    - text
+    """
+    formatted_results = []
+
+    for i, result in enumerate(results, 1):
+        payload = result.get("payload", {})
+        formatted_result = {
+            "index": i,
+            "score": result.get("score", 0.0),
+            "source": payload.get("source", "unknown"),
+            "page": payload.get("page"),
+            "chunk_index": payload.get("chunk_index", "?"),
+            "text": payload.get("text", "")
+        }
+        formatted_results.append(formatted_result)
+
+    return formatted_results
+
 
 
 def main() -> None:

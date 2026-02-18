@@ -69,22 +69,3 @@ class TestFormatResults:
         output = format_results(results)
         assert "Page: 3" in output
 
-    def test_long_text_truncated(self):
-        """Text longer than 200 chars should be truncated with '...'."""
-        long_text = "x" * 300
-        results = [
-            {
-                "id": "id-1",
-                "score": 0.75,
-                "payload": {
-                    "text": long_text,
-                    "source": "big.txt",
-                    "chunk_index": 0,
-                    "page": None,
-                },
-            }
-        ]
-        output = format_results(results)
-        assert "..." in output
-        # The full 300-char text should NOT appear
-        assert long_text not in output

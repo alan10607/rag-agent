@@ -24,8 +24,8 @@ services:
     environment:
       - QDRANT_HOST=qdrant
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
+      - ./data:/workspace/data
+      - ./logs:/workspace/logs
     stdin_open: true
     tty: true
 

@@ -66,7 +66,7 @@ def _run_search(query: str, top_k: int | None = None) -> None:
     print(format_results(results))
 
 
-def _run_agent(query: str, *, top_k: int | None = None, model: str | None = None) -> None:
+def _run_agent(query: str, *, model: str | None = None) -> None:
     """Execute a RAG-based LLM agent query."""
     setup_logging(module="agent")
     from app.agent.llm_agent import ask, format_answer
@@ -74,7 +74,7 @@ def _run_agent(query: str, *, top_k: int | None = None, model: str | None = None
     print(f"\n  Retrieving relevant context from vector DB ...")
     print(f"  Calling LLM ({model or config.AGENT_MODEL}) to generate answer ...\n")
 
-    result = ask(question=query, top_k=top_k, model=model)
+    result = ask(question=query, model=model)
     print(format_answer(result))
 
 
