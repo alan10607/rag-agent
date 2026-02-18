@@ -2,13 +2,11 @@ import pytest
 import json
 from ragent.agent.cli_runner import (
     MCPToolResult, 
-    SemanticSearchResult, 
-    parse_mcp_result, 
-    parse_semantic_search_result
+    SemanticSearchResult,
 )
 
 # ---------------------------------------------------------------------------
-# Tests: MCPToolResult (formerly parse_mcp_result logic)
+# Tests: MCPToolResult
 # ---------------------------------------------------------------------------
 
 class TestMCPToolResult:
@@ -84,7 +82,7 @@ class TestMCPToolResult:
 
 
 # ---------------------------------------------------------------------------
-# Tests: SemanticSearchResult (formerly parse_semantic_search_result logic)
+# Tests: SemanticSearchResult
 # ---------------------------------------------------------------------------
 
 class TestSemanticSearchResult:

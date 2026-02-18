@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from ragent.logger import LOG_DIR, get_logger, setup_logging
+from ragent.logger import get_logger, setup_logging
 
 
 class TestGetLogger:
@@ -38,7 +38,3 @@ class TestSetupLogging:
         root = logging.getLogger()
         assert root.level == logging.WARNING
 
-    def test_log_dir_path_exists_as_constant(self):
-        """LOG_DIR should be a valid path string."""
-        assert isinstance(LOG_DIR, str)
-        assert "logs" in LOG_DIR
