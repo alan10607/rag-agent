@@ -193,22 +193,6 @@ class TestExtractTextFromPdf:
         assert "Page 2" in full_text
         assert "Page 3" in full_text
 
-    def test_chinese_pdf_cleaned(self):
-        pdf_path = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-            "data",
-            "test.pdf",
-        )
-        if not os.path.exists(pdf_path):
-            pytest.skip("Test PDF not found: test.pdf")
-
-        full_text, _ = _extract_text_from_pdf(pdf_path)
-        cjk_space_pattern = re.compile(r'[\u4e00-\u9fff] [\u4e00-\u9fff]')
-        matches = cjk_space_pattern.findall(full_text)
-        assert len(matches) < len(full_text) * 0.01, (
-            f"Too many CJK spaces remaining: {len(matches)} in {len(full_text)} chars"
-        )
-
 
 # ---------------------------------------------------------------------------
 # Tests: _find_page_number

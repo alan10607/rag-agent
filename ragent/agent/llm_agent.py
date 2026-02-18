@@ -38,11 +38,14 @@ def ask(
     # Step 1: Build prompt
     # ------------------------------------------------------------------
     prompt = prompt_builder.build_prompt(question)
-    logger.info(f"Prompt for Agent: %s", prompt)
+    logger.info(f"Prompt for Agent:\n{'-'*30}\n{prompt}\n{'-'*30}")
 
     # ------------------------------------------------------------------
     # Step 2: Call Cursor Agent CLI
     # ------------------------------------------------------------------
+    if not cli_runner.check_mcp_status():
+        logger.error("MCP is not ready, will not be able to use the MCP tools")
+
     logger.info("Sending prompt to Cursor Agent CLI (model=%s)", model or config.AGENT_MODEL)
     result = cli_runner.run(prompt, model=model, timeout=timeout)
 

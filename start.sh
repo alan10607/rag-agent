@@ -12,7 +12,7 @@
 set -e
 
 COMPOSE="docker compose"
-SERVICE="ragent"
+IMAGE_NAME="ragent"
 
 case "${1:-start}" in
 
@@ -23,8 +23,8 @@ case "${1:-start}" in
     echo "=========================================="
     echo ""
     # Remove old image (if exists) to avoid dangling images after build
-    docker image rm $SERVICE 2>/dev/null && echo "Removed old image '$SERVICE'." || true
-    $COMPOSE build $SERVICE
+    docker image rm $IMAGE_NAME 2>/dev/null && echo "Removed old image '$IMAGE_NAME'." || true
+    $COMPOSE build app
     echo ""
     echo "Build complete."
     ;;
@@ -44,7 +44,7 @@ case "${1:-start}" in
     echo ""
 
     # Run app in interactive mode (foreground)
-    $COMPOSE run --rm $SERVICE
+    $COMPOSE run --rm app
 
     # Cleanup when user exits
     echo ""
@@ -64,11 +64,10 @@ case "${1:-start}" in
     ;;
 
   *)
-    echo "Usage: ./start.sh {build|start|config|down}"
+    echo "Usage: ./start.sh {start|build|down}"
     echo ""
-    echo "  build    Build the app Docker image"
     echo "  start    Start Qdrant + interactive CLI (auto-stop on exit) [default]"
-    echo "  config   Show current configuration"
+    echo "  build    Build the app Docker image"
     echo "  down     Remove all containers"
     exit 1
     ;;

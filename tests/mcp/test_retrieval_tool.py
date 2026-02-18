@@ -17,7 +17,7 @@ class TestRetrievalTool:
         assert isinstance(result, list)
         assert len(result) == 1
         assert result[0]["type"] == "text"
-        assert isinstance(result[0]["text"], str)
+        assert isinstance(result[0]["text"], list)
         assert len(result[0]["text"]) > 0
 
     @pytest.mark.asyncio

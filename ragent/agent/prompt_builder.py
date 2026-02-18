@@ -72,6 +72,11 @@ You must use the following MCP tools to get the information you need:
 {mcp_tools}
 """
 
+_USER_QUESTION_TEMPLATE = """\
+Please answer the user's question by using the MCP tools.
+User question: {question}
+"""
+
 def build_prompt(question: str) -> str:
     """Build a RAG prompt from the user question and retrieved context chunks.
 
@@ -93,8 +98,9 @@ def build_prompt(question: str) -> str:
         for t in tools
     )
     mcp_tools_block = _MCP_TOOLS_TEMPLATE.format(mcp_tools=tools_str)
+    user_question_block = _USER_QUESTION_TEMPLATE.format(question=question)
 
-    prompt = f"{system_block}\n{mcp_tools_block}\nUser question: {question}\n"
+    prompt = f"{system_block}\n{mcp_tools_block}\n{user_question_block}\n"
 
     logger.info(
         "Built RAG prompt: question=%r, lang=%s, prompt_length=%d",

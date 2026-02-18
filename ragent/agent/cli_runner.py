@@ -14,6 +14,7 @@ Responsibilities:
 from __future__ import annotations
 
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -111,7 +112,6 @@ class AgentResult:
     """Holds the aggregated result returned by Cursor Agent CLI."""
 
     answer_text: str = ""
-    thinking_text: str = ""
     context_chunks: list[dict] = field(default_factory=list)
     raw_events: list[dict] = field(default_factory=list)
     mcp_results: list[MCPToolResult] = field(default_factory=list)
@@ -159,43 +159,6 @@ def _parse_event(line: str) -> dict | None:
     except json.JSONDecodeError:
         logger.warning("Failed to parse NDJSON line: %s", line[:200])
         return None
-
-
-def _extract_text_from_event(event: dict) -> str:
-    """Extract assistant text content from a parsed event dict.
-
-    Works for both full-message events and partial-delta events
-    (``--stream-partial-output``).
-    """
-    if event.get("type") != "assistant":
-        return ""
-
-    message = event.get("message", {})
-    content_list = message.get("content", [])
-    parts: list[str] = []
-    for item in content_list:
-        if isinstance(item, dict) and item.get("type") == "text":
-            parts.append(item.get("text", ""))
-        elif isinstance(item, str):
-            parts.append(item)
-    return "".join(parts)
-
-
-def _extract_thinking_from_event(event: dict) -> str:
-    """Extract thinking / reasoning content from an assistant event.
-
-    Some models emit a ``thinking`` content block alongside ``text``.
-    """
-    if event.get("type") != "assistant":
-        return ""
-
-    message = event.get("message", {})
-    content_list = message.get("content", [])
-    parts: list[str] = []
-    for item in content_list:
-        if isinstance(item, dict) and item.get("type") == "thinking":
-            parts.append(item.get("thinking", "") or item.get("text", ""))
-    return "".join(parts)
 
 
 # ---------------------------------------------------------------------------
@@ -323,8 +286,6 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
 
         # Stream stdout line by line
         assert proc.stdout is not None
-        text_parts: list[str] = []
-        thinking_parts: list[str] = []
 
         for raw_line in proc.stdout:
             # Log every line unconditionally
@@ -335,9 +296,24 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
             if event is None:
                 continue
                 
-            logger.info("Captured a event type: %s, subtype: %s", event.get("type", "unknown"), event.get("subtype", "unknown"  ))
+            result.raw_events.append(event)
 
-            if event.get("type") == "tool_call" and event.get("subtype") == "completed":
+
+
+            # Capture session_id from any event
+            if not result.session_id:
+                result.session_id = event.get("session_id", "")
+
+            evt_type = event.get("type", "unknown")
+            evt_subtype = event.get("subtype", "unknown")
+            logger.info("Captured a event type: %s, subtype: %s", evt_type, evt_subtype)
+
+            # Extract model info from system/init event
+            if evt_type == "system" and evt_subtype == "init":
+                result.model = event.get("model", "")
+
+            # Process tool call event
+            if evt_type == "tool_call" and evt_subtype == "completed":
                 logger.info("Captured a tool call event with completed subtype, now parsing the result")
                 mcp_result = MCPToolResult.from_event(event)
                 logger.info(
@@ -354,31 +330,17 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
                         logger.info("Search result: index: %s, score: %f, source: %s, page: %s, chunk_index: %s", 
                             r.index, r.score, r.source, r.page, r.chunk_index)
 
-            result.raw_events.append(event)
-
-            # Capture session_id from any event
-            if not result.session_id:
-                result.session_id = event.get("session_id", "")
-
-            evt_type = event.get("type", "")
-            evt_subtype = event.get("subtype", "")
-
-            # Extract model info from system/init event
-            if evt_type == "system" and evt_subtype == "init":
-                result.model = event.get("model", "")
-
-            # Accumulate assistant text and thinking
-            if evt_type == "assistant":
-                chunk = _extract_text_from_event(event)
-                if chunk:
-                    text_parts.append(chunk)
-                thinking = _extract_thinking_from_event(event)
-                if thinking:
-                    thinking_parts.append(thinking)
-
             # Capture final duration from result event
             if evt_type == "result":
                 result.duration_ms = event.get("duration_ms", 0)
+                result.session_id = event.get("session_id", "")
+                result.answer_text = event.get("result", "No result found in  Cursor Agent CLI event")
+                logger.info(
+                    "Captured the final answer text length: %d, model: %s, duration: %dms", 
+                    len(result.answer_text), result.model, result.duration_ms
+                )
+
+
 
         # Wait for process to finish
         proc.wait(timeout=effective_timeout)
@@ -394,15 +356,10 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
             raw_log.write(f"\n# --- STDERR ---\n{stderr_output}\n# --- END STDERR ---\n")
             logger.warning("CLI stderr: %s", stderr_output.strip()[:500])
 
-        result.answer_text = "".join(text_parts)
-        result.thinking_text = "".join(thinking_parts)
-
         # Write human-readable summary at end of log
         raw_log.write(f"\n# {'=' * 60}\n")
         raw_log.write(f"# SUMMARY\n")
         raw_log.write(f"# {'=' * 60}\n")
-        if result.thinking_text:
-            raw_log.write(f"\n# --- THINKING ---\n{result.thinking_text}\n# --- END THINKING ---\n")
         raw_log.write(f"\n# --- ANSWER ---\n{result.answer_text}\n# --- END ANSWER ---\n")
 
         if proc.returncode == 0:
@@ -457,3 +414,39 @@ def run(prompt: str, *, model: str | None = None, timeout: int | None = None) ->
             raw_log.close()
 
     return result
+
+
+def check_mcp_status(mcp_name: str = "ragent") -> bool:
+    """
+    Check if the Cursor Agent MCP is ready.
+    Returns True if the status is 'ready', False otherwise.
+    """
+    try:
+        # Execute the command and capture stdout
+        result = subprocess.run(
+            ["agent", "mcp", "list"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            check=True
+        )
+        
+        # Get the output content and clean it (remove extra whitespace and newlines)
+        output = result.stdout.strip()
+        ansi_escape = re.compile(r'(?:\x1B[@-_]|[\x80-\x9F])[0-?]*[ -/]*[@-~]')
+        output = ansi_escape.sub('', output)
+        
+        logger.info(f"Check MCP output: {output}")
+        if "ready" in output:
+            logger.info(f"MCP is ready.")
+            return True
+        else:
+            logger.warning(f"MCP status abnormal")
+            return False
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to run 'agent mcp list'. Error: {e.stderr}")
+        return False
+    except FileNotFoundError:
+        logger.error("'agent' command not found. Make sure Cursor Agent is installed.")
+        return False
