@@ -17,9 +17,6 @@ logs/
 # Data
 data/
 
-# Qdrant local storage
-qdrant_storage/
-
 # IDE
 .vscode/
 .idea/

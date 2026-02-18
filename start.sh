@@ -3,9 +3,8 @@
 # Ragent - Docker Management Script
 #
 # Usage:
-#   ./start.sh build    Build the app Docker image
 #   ./start.sh start    Start Qdrant + interactive CLI (auto-stop on exit) [default]
-#   ./start.sh config   Show current configuration
+#   ./start.sh build    Build the app Docker image
 #   ./start.sh down     Stop and remove all containers
 #
 
