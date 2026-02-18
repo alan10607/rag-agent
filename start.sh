@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# VectorSearcher - Docker Management Script
+# Ragent - Docker Management Script
 #
 # Usage:
 #   ./start.sh build    Build the app Docker image
@@ -12,14 +12,14 @@
 set -e
 
 COMPOSE="docker compose"
-SERVICE="vector-searcher"
+SERVICE="ragent"
 
 case "${1:-start}" in
 
   build)
     echo ""
     echo "=========================================="
-    echo "  VectorSearcher - Building..."
+    echo "  Ragent - Building..."
     echo "=========================================="
     echo ""
     # Remove old image (if exists) to avoid dangling images after build
@@ -32,7 +32,7 @@ case "${1:-start}" in
   start)
     echo ""
     echo "=========================================="
-    echo "  VectorSearcher - Starting..."
+    echo "  Ragent - Starting..."
     echo "=========================================="
     echo ""
 
@@ -40,7 +40,7 @@ case "${1:-start}" in
     echo "[1/2] Starting Qdrant..."
     $COMPOSE up qdrant -d --wait
 
-    echo "[2/2] Launching VectorSearcher CLI..."
+    echo "[2/2] Launching Ragent CLI..."
     echo ""
 
     # Run app in interactive mode (foreground)
@@ -53,14 +53,10 @@ case "${1:-start}" in
     echo "Done. All containers stopped."
     ;;
 
-  config)
-    $COMPOSE run --rm --no-deps $SERVICE python -m app config
-    ;;
-
   down)
     echo ""
     echo "=========================================="
-    echo "  VectorSearcher - Downing..."
+    echo "  Ragent - Downing..."
     echo "=========================================="
     echo ""
     $COMPOSE down -v

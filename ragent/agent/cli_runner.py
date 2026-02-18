@@ -1,5 +1,5 @@
 """
-VectorSearcher - Cursor Agent CLI Runner
+Ragent - Cursor Agent CLI Runner
 
 Manages the subprocess lifecycle for calling ``cursor agent`` in headless
 (print) mode with ``--output-format stream-json``.
@@ -22,8 +22,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import IO, Dict, Any, List, Union, Optional
 
-from app import config
-from app.logger import get_logger
+from ragent import config
+from ragent.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -50,7 +50,7 @@ class MCPToolResult:
     is_semantic_search: bool = False
     
     def __post_init__(self):
-        if self.tool_name == "vector-searcher-semantic_search":
+        if self.tool_name == "ragent-semantic_search":
             object.__setattr__(self, "is_semantic_search", True)
 
     @classmethod

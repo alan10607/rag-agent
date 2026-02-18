@@ -1,7 +1,7 @@
 """Unit test for MCP tool handlers"""
 
 import asyncio
-from app.mcp import retrieval_tool
+from ragent.mcp import retrieval_tool
 
 
 async def test_semantic_search():

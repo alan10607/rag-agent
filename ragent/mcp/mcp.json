@@ -1,8 +1,8 @@
 {
     "mcpServers": {
-      "vector-searcher": {
+      "ragent": {
         "command": "/bin/sh",
-        "args": ["-c", "cd /workspace && python -m app.mcp.main"],
+        "args": ["-c", "cd /app && python -m ragent.mcp.main"],
         "env": {
           "QDRANT_HOST": "qdrant"
         }

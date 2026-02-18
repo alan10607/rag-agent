@@ -3,7 +3,7 @@
 import pytest
 import asyncio
 
-from app.mcp import retrieval_tool
+from ragent.mcp import retrieval_tool
 
 
 class TestRetrievalTool:

@@ -13,7 +13,7 @@ import os
 
 # Default paths and server name
 DEFAULT_CONFIG_PATH = "/root/.cursor/mcp.json"
-DEFAULT_SERVER_NAME = "vector-searcher"
+DEFAULT_SERVER_NAME = "ragent"
 
 def generate_approval_key(
     cwd: str,

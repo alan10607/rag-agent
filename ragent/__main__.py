@@ -1,26 +1,26 @@
 """
-VectorSearcher - Unified CLI Entry Point
+Ragent - Unified CLI Entry Point
 
 Supports two modes:
-  1. Subcommand mode:  python -m app ingest
-                       python -m app search "query" --top_k 3
-                       python -m app agent "question" --model gemini-3-flash
-  2. Interactive mode:  python -m app  (no arguments -> menu)
+  1. Subcommand mode:  python -m ragent ingest
+                       python -m ragent search "query" --top_k 3
+                       python -m ragent agent "question" --model gemini-3-flash
+  2. Interactive mode: python -m ragent  (no arguments -> menu)
 """
 
 import argparse
 import questionary
 import sys
 
-from app import config
-from app.logger import setup_logging
+from ragent import config
+from ragent.logger import setup_logging
 
 
 def _show_config() -> None:
     """Display current configuration from environment variables."""
     print()
     print("=" * 50)
-    print("  VectorSearcher - Current Configuration")
+    print("  Ragent - Current Configuration")
     print("=" * 50)
     print()
     print(f"  {'LOG_LEVEL':<25} {config.LOG_LEVEL}")
@@ -38,6 +38,7 @@ def _show_config() -> None:
     print(f"  {'CHUNK_MIN_SIZE':<25} {config.CHUNK_MIN_SIZE}")
     print()
     print(f"  {'DATA_DIR':<25} {config.DATA_DIR}")
+    print(f"  {'LOG_DIR':<25} {config.LOG_DIR}")
     print(f"  {'SUPPORTED_EXTENSIONS':<25} {', '.join(config.SUPPORTED_EXTENSIONS)}")
     print(f"  {'UPSERT_BATCH_SIZE':<25} {config.UPSERT_BATCH_SIZE}")
     print()
@@ -51,7 +52,7 @@ def _show_config() -> None:
 def _run_ingest(data_dir: str | None = None) -> None:
     """Execute the ingestion pipeline from a given data directory."""
     setup_logging(module="ingest")
-    from app.indexing.indexer import ingest
+    from ragent.indexing.indexer import ingest
 
     total, success_count, failed_count = ingest(data_dir=data_dir)
     print(f"\nIngestion complete. Total points: {total}, success: {success_count}, failed: {failed_count}")
@@ -60,7 +61,7 @@ def _run_ingest(data_dir: str | None = None) -> None:
 def _run_search(query: str, top_k: int | None = None) -> None:
     """Execute a semantic search query."""
     setup_logging(module="search")
-    from app.retrieval.retriever import search, format_results
+    from ragent.retrieval.retriever import search, format_results
 
     results = search(query, top_k=top_k)
     print(format_results(results))
@@ -69,7 +70,7 @@ def _run_search(query: str, top_k: int | None = None) -> None:
 def _run_agent(query: str, *, model: str | None = None) -> None:
     """Execute a RAG-based LLM agent query."""
     setup_logging(module="agent")
-    from app.agent.llm_agent import ask, format_answer
+    from ragent.agent.llm_agent import ask, format_answer
 
     print(f"\n  Retrieving relevant context from vector DB ...")
     print(f"  Calling LLM ({model or config.AGENT_MODEL}) to generate answer ...\n")
@@ -117,7 +118,7 @@ def run_agent_interactive():
 
 def _interactive_menu() -> None:
     print("\n" + "=" * 50)
-    print("  VectorSearcher CLI")
+    print("  Ragent CLI")
     print("=" * 50)
 
     while True:
@@ -127,9 +128,9 @@ def _interactive_menu() -> None:
                 "Select an option:",
                 choices=[
                     "Agent   - RAG + LLM Q&A",
-                    "Search  - Semantic search",
-                    "Ingest  - Import documents",
-                    "Config  - Show current configuration",
+                    "Search  - Pure Semantic Search",
+                    "Ingest  - Import Documents",
+                    "Config  - Show Current Configuration",
                     "Exit",
                 ],
             ).ask()
@@ -159,8 +160,8 @@ def main() -> None:
         return
 
     parser = argparse.ArgumentParser(
-        prog="python -m app",
-        description="VectorSearcher - Modular Vector Search Engine",
+        prog="python -m ragent",
+        description="Ragent - Interactive RAG Agent CLI",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
@@ -168,25 +169,22 @@ def main() -> None:
     subparsers.add_parser("config", help="Show current configuration")
 
     # Ingest subcommand
-    ingest_parser = subparsers.add_parser("ingest", help="Import documents into Qdrant")
+    ingest_parser = subparsers.add_parser("ingest", help="Import documents into vector store")
     ingest_parser.add_argument(
         "--data_dir", type=str, default=config.DATA_DIR, help=f"The path to the data directory. Default from config if not provided ({config.DATA_DIR}).",
     )
 
 
     # Search subcommand
-    search_parser = subparsers.add_parser("search", help="Semantic search against Qdrant")
+    search_parser = subparsers.add_parser("search", help="Semantic search against vector store")
     search_parser.add_argument("query", type=str, help="The text query to search for")
     search_parser.add_argument(
         "--top_k", type=int, default=config.DEFAULT_TOP_K, help=f"Number of results (default: {config.DEFAULT_TOP_K})"
     )
 
     # Agent subcommand
-    agent_parser = subparsers.add_parser("agent", help="RAG + LLM agent (Cursor CLI)")
+    agent_parser = subparsers.add_parser("agent", help="RAG + LLM Agent (Cursor CLI)")
     agent_parser.add_argument("query", type=str, help="The question to ask the agent")
-    agent_parser.add_argument(
-        "--top_k", type=int, default=config.DEFAULT_TOP_K, help=f"Number of context chunks (default: {config.DEFAULT_TOP_K})"
-    )
     agent_parser.add_argument(
         "--model", type=str, default=None, help=f"LLM model name (default: {config.AGENT_MODEL})"
     )
@@ -203,7 +201,7 @@ def main() -> None:
         _run_search(args.query, top_k=args.top_k)
 
     elif args.command == "agent":
-        _run_agent(args.query, top_k=args.top_k, model=args.model)
+        _run_agent(args.query, model=args.model)
 
     else:
         parser.print_help()

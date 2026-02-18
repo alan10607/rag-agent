@@ -1,18 +1,15 @@
 """
-VectorSearcher - Query Pipeline (Semantic Search)
+Ragent - Query Pipeline (Semantic Search)
 
-Provides a CLI interface for semantic search against the Qdrant vector store.
-
-Usage:
-    python -m app.search "your query here" --top_k 5
+Searches the vector store for the most relevant documents based on the query.
 """
 
 import argparse
 
-from app import config
-from app.core import embedding
-from app.storage import vector_store
-from app.logger import get_logger, setup_logging
+from ragent import config
+from ragent.core import embedding
+from ragent.storage import vector_store
+from ragent.logger import get_logger, setup_logging
 
 MAX_TOP_K = 20
 
@@ -108,7 +105,7 @@ def format_results_json(results: list[dict]) -> list[dict]:
 def main() -> None:
     """CLI entry point for semantic search."""
     parser = argparse.ArgumentParser(
-        description="VectorSearcher Semantic Search",
+        description="Ragent Semantic Search",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(

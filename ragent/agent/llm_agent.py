@@ -1,5 +1,5 @@
 """
-VectorSearcher - LLM Agent (RAG)
+Ragent - LLM Agent (RAG)
 
 Orchestrates the full RAG pipeline:
 1. Retrieve relevant context from the Qdrant vector store.
@@ -11,9 +11,9 @@ Orchestrates the full RAG pipeline:
 from __future__ import annotations
 
 import argparse
-from app import config
-from app.agent import cli_runner, prompt_builder
-from app.logger import get_logger, setup_logging
+from ragent import config
+from ragent.agent import cli_runner, prompt_builder
+from ragent.logger import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
@@ -121,7 +121,7 @@ def format_answer(result: cli_runner.AgentResult) -> str:
 def main() -> None:
     """CLI entry point for LLM Agent."""
     parser = argparse.ArgumentParser(
-        description="VectorSearcher LLM Agent",
+        description="Ragent LLM Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(

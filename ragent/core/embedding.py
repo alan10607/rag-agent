@@ -1,5 +1,5 @@
 """
-VectorSearcher - Embedding Generator
+Ragent - Embedding Generator
 
 Wraps the sentence-transformers library to provide a simple interface
 for converting text into vector embeddings.
@@ -9,8 +9,8 @@ Model: all-MiniLM-L6-v2 (384-dimensional vectors)
 
 from sentence_transformers import SentenceTransformer
 
-from app import config
-from app.logger import get_logger
+from ragent import config
+from ragent.logger import get_logger
 
 logger = get_logger(__name__)
 

@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from app.indexing.indexer import (
+from ragent.indexing.indexer import (
     _clean_chinese_text,
     _extract_text_from_pdf,
     _find_page_number,

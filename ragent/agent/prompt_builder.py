@@ -1,5 +1,5 @@
 """
-VectorSearcher - RAG Prompt Builder with MCP Tools
+Ragent - RAG Prompt Builder with MCP Tools
 
 Constructs prompts that combine retrieved context chunks with the user's question,
 following a standard RAG (Retrieval-Augmented Generation) pattern.
@@ -8,8 +8,8 @@ following a standard RAG (Retrieval-Augmented Generation) pattern.
 import re
 import json
 from mcp.types import Tool
-from app.logger import get_logger
-from app.mcp import retrieval_tool
+from ragent.logger import get_logger
+from ragent.mcp import retrieval_tool
 from typing import List
 
 logger = get_logger(__name__)

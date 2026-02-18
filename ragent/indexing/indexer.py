@@ -1,5 +1,5 @@
 """
-VectorSearcher - Ingestion Pipeline
+Ragent - Ingestion Pipeline
 
 Scans a local data directory, processes supported document types (.pdf, .txt, .md),
 splits them into chunks, generates embeddings, and upserts into Qdrant.
@@ -18,11 +18,11 @@ from datetime import datetime, timezone
 
 from qdrant_client.http.models import PointStruct
 
-from app import config
-from app.core import embedding
-from app.indexing import splitter
-from app.storage import vector_store
-from app.logger import get_logger, setup_logging
+from ragent import config
+from ragent.core import embedding
+from ragent.indexing import splitter
+from ragent.storage import vector_store
+from ragent.logger import get_logger, setup_logging
 
 logger = get_logger(__name__)
 
@@ -252,7 +252,7 @@ def ingest(data_dir: str | None = None) -> tuple[int, int, int]:
 def main() -> None:
     """CLI entry point for ingestion."""
     parser = argparse.ArgumentParser(
-        description="VectorSearcher Ingestion",
+        description="Ragent Ingestion",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
 

@@ -1,5 +1,5 @@
 """
-VectorSearcher - Qdrant Client Wrapper
+Ragent - Qdrant Client Wrapper
 
 Encapsulates all interactions with the Qdrant vector database:
 - Connection management
@@ -17,8 +17,8 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from app import config
-from app.logger import get_logger
+from ragent import config
+from ragent.logger import get_logger
 
 logger = get_logger(__name__)
 

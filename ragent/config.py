@@ -1,5 +1,5 @@
 """
-VectorSearcher - Centralized Configuration
+Ragent - Centralized Configuration
 
 All configurable parameters are managed here.
 Values are loaded from environment variables (.env) with sensible defaults.
@@ -31,9 +31,10 @@ CHUNK_OVERLAP = int(os.getenv("CHUNK_OVERLAP", "120"))
 CHUNK_MIN_SIZE = int(os.getenv("CHUNK_MIN_SIZE", "50"))
 
 # Ingestion settings
-# Project root is one level up from app/
+# Project root is one level up from ragent/
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 DATA_DIR = os.getenv("DATA_DIR", os.path.join(_PROJECT_ROOT, "data"))
+LOG_DIR = os.getenv("LOG_DIR", os.path.join(_PROJECT_ROOT, "logs"))
 SUPPORTED_EXTENSIONS = [".pdf", ".txt", ".md", ".log", ".docx"]
 UPSERT_BATCH_SIZE = 100
 

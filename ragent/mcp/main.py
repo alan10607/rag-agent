@@ -1,5 +1,5 @@
 """
-VectorSearcher MCP Server
+Ragent MCP Server
 
 Production-ready MCP server
 Supports future HTTP-based tools
@@ -12,14 +12,14 @@ from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import Tool
 
-from app.mcp import retrieval_tool
-from app.logger import get_logger, setup_logging
+from ragent.mcp import retrieval_tool
+from ragent.logger import get_logger, setup_logging
 
 
 setup_logging(module="mcp")
 logger = get_logger(__name__)
 
-server = Server("VectorSearcher MCP Server")
+server = Server("Ragent MCP Server")
 TOOL_MODULES = [retrieval_tool]
 TOOL_DEFINITIONS: List[Tool] = []
 TOOL_HANDLERS: Dict[str, Callable[[str, dict], Awaitable[List[dict]]]] = {}
@@ -84,7 +84,7 @@ async def call_tool(name: str, arguments: dict):
 # MCP Server Startup
 # ==========================================================
 async def main():
-    logger.info("Starting VectorSearcher MCP Server...")
+    logger.info("Starting Ragent MCP Server...")
 
     # Register tools before server startup
     register_tools()

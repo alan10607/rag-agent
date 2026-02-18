@@ -5,7 +5,7 @@ They are integration tests that validate the embedding pipeline works correctly.
 """
 
 import pytest
-from app.core.embedding import encode, encode_batch
+from ragent.core.embedding import encode, encode_batch
 
 
 class TestEncode:

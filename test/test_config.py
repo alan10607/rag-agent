@@ -4,7 +4,7 @@ import os
 
 import pytest
 
-from app import config
+from ragent import config
 
 
 class TestConfigValues:

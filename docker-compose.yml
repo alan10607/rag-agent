@@ -13,8 +13,8 @@ services:
       timeout: 3s
       retries: 5
 
-  vector-searcher:
-    image: vector-searcher
+  ragent:
+    image: ragent
     build: .
     depends_on:
       qdrant:
@@ -24,8 +24,8 @@ services:
     environment:
       - QDRANT_HOST=qdrant
     volumes:
-      - ./data:/workspace/data
-      - ./logs:/workspace/logs
+      - ./data:/app/data
+      - ./logs:/app/logs
     stdin_open: true
     tty: true
 

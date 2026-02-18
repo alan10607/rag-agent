@@ -1,6 +1,6 @@
 FROM python:3.14-slim
 
-WORKDIR /workspace
+WORKDIR /app
 
 # Install system dependencies (curl for Cursor CLI installer)
 RUN apt-get update && apt-get install -y --no-install-recommends curl && \
@@ -15,10 +15,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY app/ ./app/
+COPY ragent/ ./ragent/
 
 # Copy MCP configuration for Cursor Agent
-COPY app/mcp/mcp.json /root/.cursor/mcp.json
+COPY ragent/mcp/mcp.json /root/.cursor/mcp.json
 
 # data/ is mounted as volume, not copied
 # logs/ is created at runtime
@@ -30,4 +30,4 @@ RUN chmod +x ./entrypoint.sh
 # Set entrypoint
 ENTRYPOINT ["./entrypoint.sh"]
 
-CMD ["python", "-m", "app"]
+CMD ["python", "-m", "ragent"]

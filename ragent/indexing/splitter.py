@@ -1,5 +1,5 @@
 """
-VectorSearcher - Text Splitter
+Ragent - Text Splitter
 
 Splits text into overlapping chunks using LangChain's RecursiveCharacterTextSplitter.
 Falls back to a built-in recursive splitter if LangChain is unavailable.
@@ -11,8 +11,8 @@ Supports both English and Chinese text:
 
 from dataclasses import dataclass
 
-from app import config
-from app.logger import get_logger
+from ragent import config
+from ragent.logger import get_logger
 from langchain_text_splitters import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter
 
 logger = get_logger(__name__)

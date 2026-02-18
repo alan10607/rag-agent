@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.retrieval.retriever import format_results
+from ragent.retrieval.retriever import format_results
 
 
 class TestFormatResults:

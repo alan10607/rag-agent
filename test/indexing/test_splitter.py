@@ -1,7 +1,7 @@
 """Tests for the text splitter module (app.indexing.splitter)."""
 
 import pytest
-from app.indexing.splitter import Chunk, merge_small_chunks, split_text
+from ragent.indexing.splitter import Chunk, merge_small_chunks, split_text
 
 
 class TestSplitText:

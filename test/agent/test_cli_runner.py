@@ -1,6 +1,6 @@
 import pytest
 import json
-from app.agent.cli_runner import (
+from ragent.agent.cli_runner import (
     MCPToolResult, 
     SemanticSearchResult, 
     parse_mcp_result, 
@@ -25,7 +25,7 @@ class TestMCPToolResult:
             "tool_call": {
                 "mcpToolCall": {
                     "args": {
-                        "name": "vector-searcher-semantic_search",
+                        "name": "ragent-semantic_search",
                         "args": {
                             "query": "my-query",
                             "top_k": 5
@@ -50,7 +50,7 @@ class TestMCPToolResult:
 
         result = MCPToolResult.from_event(event)
 
-        assert result.tool_name == "vector-searcher-semantic_search"
+        assert result.tool_name == "ragent-semantic_search"
         assert result.tool_args == {"query": "my-query", "top_k": 5}
         assert result.success is True  # success is not isError
         assert result.timestamp_ms == 123456789
@@ -111,7 +111,7 @@ class TestSemanticSearchResult:
 
         # Encapsulate into MCPToolResult to test conversion
         mcp_result = MCPToolResult(
-            tool_name="vector-searcher-semantic_search",
+            tool_name="ragent-semantic_search",
             tool_args={},
             success=True,
             timestamp_ms=123,
@@ -132,7 +132,7 @@ class TestSemanticSearchResult:
 
     def test_invalid_json_returns_empty_list(self):
         mcp_result = MCPToolResult(
-            tool_name="vector-searcher-semantic_search",
+            tool_name="ragent-semantic_search",
             tool_args={},
             success=True,
             timestamp_ms=123,
@@ -142,7 +142,7 @@ class TestSemanticSearchResult:
 
     def test_missing_content_returns_empty_list(self):
         mcp_result = MCPToolResult(
-            tool_name="vector-searcher-semantic_search",
+            tool_name="ragent-semantic_search",
             tool_args={},
             success=True,
             timestamp_ms=123,

@@ -6,7 +6,7 @@ pytest.mark.integration and skipped by default.
 
 import pytest
 
-from app.storage import vector_store
+from ragent.storage import vector_store
 
 
 class TestGetClient:

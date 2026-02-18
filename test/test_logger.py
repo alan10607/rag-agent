@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from app.logger import LOG_DIR, get_logger, setup_logging
+from ragent.logger import LOG_DIR, get_logger, setup_logging
 
 
 class TestGetLogger:

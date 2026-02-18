@@ -6,8 +6,8 @@ Provides semantic search integration.
 from typing import Dict, Any, List
 from mcp.types import Tool
 
-from app.retrieval.retriever import search, format_results_json
-from app.logger import get_logger
+from ragent.retrieval.retriever import search, format_results_json
+from ragent.logger import get_logger
 
 logger = get_logger(__name__)
 
